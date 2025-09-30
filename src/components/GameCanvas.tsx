@@ -51,13 +51,18 @@ export const GameCanvas = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
+    const resizeCanvas = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      playerRef.current.x = canvas.width / 2 - playerRef.current.width / 2;
+      playerRef.current.y = canvas.height - 100;
+    };
 
-    playerRef.current.x = canvas.width / 2 - playerRef.current.width / 2;
-    playerRef.current.y = canvas.height - 100;
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
     // 初始化星星
+    starsRef.current = [];
     for (let i = 0; i < 100; i++) {
       starsRef.current.push({
         x: Math.random() * canvas.width,
@@ -83,6 +88,7 @@ export const GameCanvas = () => {
     window.addEventListener('keyup', handleKeyUp);
 
     return () => {
+      window.removeEventListener('resize', resizeCanvas);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
       if (gameLoopRef.current) {
@@ -167,7 +173,7 @@ export const GameCanvas = () => {
       
       // 检查敌人是否碰到底部
       if (enemy.y > canvas.height) {
-        setLives(prev => prev - 1);
+        setLives(prev => Math.max(0, prev - 1));
         return false;
       }
 
@@ -186,7 +192,7 @@ export const GameCanvas = () => {
       // 检查玩家碰撞
       if (checkCollision(player, enemy)) {
         enemy.active = false;
-        setLives(prev => prev - 1);
+        setLives(prev => Math.max(0, prev - 1));
         return false;
       }
 
@@ -284,6 +290,17 @@ export const GameCanvas = () => {
     gameLoopRef.current = requestAnimationFrame(gameLoop);
   };
 
+  useEffect(() => {
+    if (gameState === 'playing') {
+      gameLoop();
+    }
+    return () => {
+      if (gameLoopRef.current) {
+        cancelAnimationFrame(gameLoopRef.current);
+      }
+    };
+  }, [gameState, lives]);
+
   const startGame = () => {
     setGameState('playing');
     setScore(0);
@@ -296,8 +313,6 @@ export const GameCanvas = () => {
       playerRef.current.x = canvas.width / 2 - playerRef.current.width / 2;
       playerRef.current.y = canvas.height - 100;
     }
-
-    gameLoop();
   };
 
   const restartGame = () => {
@@ -305,27 +320,24 @@ export const GameCanvas = () => {
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden">
+    <div className="relative w-full h-screen overflow-hidden bg-slate-950">
       <canvas
         ref={canvasRef}
-        className="absolute inset-0"
+        className="absolute inset-0 w-full h-full"
       />
 
       {/* HUD */}
       {gameState === 'playing' && (
-        <div className="absolute top-6 left-0 right-0 flex justify-between px-8 pointer-events-none">
-          <div className="text-2xl font-bold" style={{ color: 'hsl(var(--primary))' }}>
+        <div className="absolute top-6 left-0 right-0 flex justify-between px-8 pointer-events-none z-10">
+          <div className="text-2xl font-bold text-purple-400">
             分数: {score}
           </div>
           <div className="flex gap-2">
             {Array.from({ length: lives }).map((_, i) => (
               <div
                 key={i}
-                className="w-8 h-8 rounded-full"
-                style={{ 
-                  backgroundColor: 'hsl(var(--accent))',
-                  boxShadow: '0 0 10px hsl(var(--accent))'
-                }}
+                className="w-8 h-8 rounded-full bg-pink-500"
+                style={{ boxShadow: '0 0 10px #ec4899' }}
               />
             ))}
           </div>
@@ -334,28 +346,18 @@ export const GameCanvas = () => {
 
       {/* 开始菜单 */}
       {gameState === 'menu' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <Card className="p-8 space-y-6 text-center border-2" style={{ 
-            borderColor: 'hsl(var(--primary))',
-            background: 'rgba(10, 14, 39, 0.9)'
-          }}>
-            <h1 className="text-6xl font-bold mb-4" style={{ 
-              color: 'hsl(var(--primary))',
-              textShadow: '0 0 20px hsl(var(--primary))'
-            }}>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-20">
+          <Card className="p-8 space-y-6 text-center border-2 border-purple-500 bg-slate-900/90">
+            <h1 className="text-6xl font-bold mb-4 text-purple-400" style={{ textShadow: '0 0 20px #a855f7' }}>
               星空大战
             </h1>
-            <p className="text-xl" style={{ color: 'hsl(var(--foreground))' }}>
+            <p className="text-xl text-slate-200">
               使用方向键移动，空格键射击
             </p>
             <Button
               size="lg"
               onClick={startGame}
-              className="text-xl px-8 py-6"
-              style={{
-                background: 'hsl(var(--primary))',
-                color: 'hsl(var(--primary-foreground))'
-              }}
+              className="text-xl px-8 py-6 bg-purple-500 hover:bg-purple-600 text-white"
             >
               开始游戏
             </Button>
@@ -365,28 +367,18 @@ export const GameCanvas = () => {
 
       {/* 游戏结束 */}
       {gameState === 'gameover' && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <Card className="p-8 space-y-6 text-center border-2" style={{ 
-            borderColor: 'hsl(var(--destructive))',
-            background: 'rgba(10, 14, 39, 0.9)'
-          }}>
-            <h1 className="text-6xl font-bold mb-4" style={{ 
-              color: 'hsl(var(--destructive))',
-              textShadow: '0 0 20px hsl(var(--destructive))'
-            }}>
+        <div className="absolute inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-20">
+          <Card className="p-8 space-y-6 text-center border-2 border-red-500 bg-slate-900/90">
+            <h1 className="text-6xl font-bold mb-4 text-red-500" style={{ textShadow: '0 0 20px #ef4444' }}>
               游戏结束
             </h1>
-            <p className="text-3xl font-bold" style={{ color: 'hsl(var(--primary))' }}>
+            <p className="text-3xl font-bold text-purple-400">
               最终分数: {score}
             </p>
             <Button
               size="lg"
               onClick={restartGame}
-              className="text-xl px-8 py-6"
-              style={{
-                background: 'hsl(var(--primary))',
-                color: 'hsl(var(--primary-foreground))'
-              }}
+              className="text-xl px-8 py-6 bg-purple-500 hover:bg-purple-600 text-white"
             >
               重新开始
             </Button>
@@ -396,7 +388,7 @@ export const GameCanvas = () => {
 
       {/* 控制提示 */}
       {gameState === 'playing' && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-sm opacity-50 pointer-events-none">
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-sm text-slate-400 opacity-50 pointer-events-none z-10">
           ← → 移动 | SPACE 射击
         </div>
       )}

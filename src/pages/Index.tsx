@@ -1,7 +1,11 @@
 import { GameCanvas } from '@/components/GameCanvas';
 
 const Index = () => {
-  return <GameCanvas />;
+  return (
+    <div className="w-full h-screen">
+      <GameCanvas />
+    </div>
+  );
 };
 
 export default Index;
